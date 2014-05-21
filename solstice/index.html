@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+ 
+body {
+  background: #fcfcfa;
+}
+ 
+.stroke {
+  fill: none;
+  stroke: #252525;
+  stroke-width: 2px;
+}
+ 
+.fill {
+  fill: #737373;
+}
+
+.points {
+  opacity: 0.0;
+}
+
+.points {
+  #fill: #ffffbf;
+  opacity: 1.0;
+}
+ 
+.graticule {
+  fill: none;
+  stroke: #f7f7f7;
+  stroke-width: .5px;
+  stroke-opacity: .5;
+}
+ 
+.land {
+  fill: #bdbdbd;
+}
+
+.boundary {
+  fill: none;
+  stroke: #525252;
+  stroke-width: .2px;
+}
+
+.center
+{
+margin-left:auto;
+margin-right:auto;
+width:70%;
+background-color:#f7f7f7;
+}
+ 
+</style>
+<body class='center'>
+<div id="option">
+    <input name="updateButton" 
+                 type="button" 
+                value="Travel through Time" 
+                onclick="updateData()" />
+<h1 id="date">Howdy CUGOS</h1>
+</div>
+ 
+<script src="d3.v3.min.js"></script>
+<script src="topojson.v1.min.js"></script>
+<script src="noaa_solar_calc.js"></script>
+<script src="jquery-2.1.1.min.js"></script>
+<script>
+
+var color = d3.scale.linear()
+    .domain([0, 620, 720, 840, 1440])
+    .range(['#2c7bb6', '#abd9e9', '#ffffbf','#fdae61', '#d7191c'])
+
+var width = 600,
+    height =600,
+    rotate = [0, -90],
+    longitude = [0,0];
+ 
+var projection = d3.geo.orthographic()
+    .scale(250)
+    .translate([width / 2, height / 2])
+    .clipAngle(90)
+    .precision(.1);
+
+var path = d3.geo.path()
+    .projection(projection)
+    .pointRadius([8]);
+    //.pointRadius(function(d, i) { return i/100; });
+ 
+var graticule = d3.geo.graticule();
+ 
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+/*
+var λ = d3.scale.linear()
+    .domain([0, width])
+    .range([-180, 180]);
+
+var φ = d3.scale.linear()
+    .domain([0, height])
+    .range([90, -90]);
+
+svg.on("mousemove", function() {
+  var p = d3.mouse(this);
+  projection.rotate([λ(p[0]), φ(p[1])]);
+  svg.selectAll("path").attr("d", path);
+});
+*/
+svg.append("defs").append("path")
+    .datum({type: "Sphere"})
+    .attr("id", "sphere")
+    .attr("d", path);
+
+svg.append("use")
+    .attr("class", "stroke")
+    .attr("xlink:href", "#sphere");
+
+svg.append("use")
+    .attr("class", "fill")
+    .attr("xlink:href", "#sphere");
+
+svg.append("path")
+    .datum(graticule)
+    .attr("class", "graticule")
+    .attr("d", path);
+
+d3.json("110m_land.json", function(error, world) {
+  svg.insert("path")
+      .datum(topojson.feature(world, world.objects.ne_110m_land))
+      .attr("class", "land")
+      .attr("d", path);
+ 
+  svg.insert("path", ".graticule")
+      .datum(topojson.mesh(world, world.objects.countries, function(a, b) { return a !== b; }))
+      .attr("class", "boundary")
+      .attr("d", path);
+});
+
+var today = new Date()
+    next  = new Date();
+
+d3.json("HISPEED_500.json", function(json) {
+  svg.selectAll("g")
+     .data(json.features)
+     .enter()
+     .append("path")
+       .attr("class", "points")
+       .attr("fill", '#ffffbf')
+       .attr("lon", function(d) { return d.geometry.coordinates[0]; })
+       .attr("lat", function(d) { return d.geometry.coordinates[1]; })
+       .attr("d", path);
+});
+
+function addMinutes(date, minutes) {
+  console.log(date);
+  return new Date(date.getTime() + minutes*60000);
+}
+
+function updateData() {
+  setInterval(updateDaylight, 100)
+}
+
+function updateDaylight() {
+  today = addMinutes(today, 1440);
+  var date = today.toDateString(),
+      head = d3.select('#date');
+  head[0][0].innerHTML = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+
+  d3.selectAll(".points").transition()
+    .each("start", colorScale)
+}
+
+function colorScale() {
+  var lat = d3.select(this).attr("lat"),
+      time = calcSun(today, [lat, 0], true),
+      dayColor = color(time);
+  d3.select(this).transition()
+    .duration(10)
+    .attr("fill", dayColor);
+
+}
+
+</script>
