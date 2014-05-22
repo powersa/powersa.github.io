@@ -163,9 +163,16 @@ function updateDaylight() {
     .each("start", colorScale)
 }
 
+function calcSunBounder(val) {
+  // calcSun is returning NaN, stems from line 1521 of noaa_solar_calc.js
+  if(val > 1440 || val !== Number(val)) return 1440;
+  if(val < 0) return 0;
+  return val;
+}
+
 function colorScale() {
   var lat = d3.select(this).attr("lat"),
-      time = calcSun(today, [lat, 0], true),
+      time = calcSunBounder(calcSun(today, [lat, 0], true)),
       dayColor = color(time);
   d3.select(this).transition()
     .duration(10)
